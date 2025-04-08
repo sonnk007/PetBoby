@@ -1,0 +1,5 @@
+org.springframework.test.context.ContextCustomizerFactory = \
+    tech.sonnk.config.SqlTestContainersSpringContextCustomizerFactory,tech.\
+    sonnk.config.TestContainersSpringContextCustomizerFactory,tech.sonnk.config.\
+    RedisTestContainersSpringContextCustomizerFactory,tech.sonnk.config.\
+    KafkaTestContainersSpringContextCustomizerFactory
