@@ -1,0 +1,39 @@
+<configuration>
+    <!-- 1. Khai báo biến -->
+    <property name="LOG_PATH" value="logs" />
+    <property name="LOG_FILE_NAME" value="app" />
+    <property name="MAX_HISTORY" value="30" /> <!-- Số ngày giữ log -->
+
+    <!-- 2. Appender: Ghi log ra Console -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Định dạng ngắn gọn để xem trên terminal -->
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 3. Appender: Ghi log ra file, xoay vòng theo ngày -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <!-- Định dạng chi tiết, lưu file -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 4. Root Logger: Ghi log toàn hệ thống -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </root>
+
+    <!-- 5. (Tùy chọn) Bật DEBUG cho các package riêng -->
+    <!--
+    <logger name="com.sonnk.product" level="DEBUG"/>
+    -->
+
+</configuration>

@@ -25,3 +25,7 @@ cloudinary:
   cloud-name: diwlrxoqc
   api-key: 748661693984332
   api-secret: hZWJ1cq7OUgEWUw8x8ewA0ub-0c
+logging:
+  level:
+    root: INFO
+    com.sonnk.product: DEBUG
