@@ -1,30 +1,23 @@
 package com.sonnk.product.objects.entity;
 
 import com.sonnk.product.objects.entity.base.BaseEntity;
-import com.sonnk.product.utils.enums.ProductStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
 @Entity
-@Table(name = "topping")
+@Table(name = "category")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Topping extends BaseEntity {
+public class Category extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    @Column(unique = true, nullable = false)
+    private String code;
     private String name;
-
-    private BigDecimal price;
-
-    @Enumerated(EnumType.STRING)
-    private ProductStatus status;
 }
