@@ -8,15 +8,15 @@
         <outputRelativeToContentRoot value="true" />
         <module name="gateway-service" />
       </profile>
-      <profile name="Annotation profile for staff" enabled="true">
+      <profile name="Annotation profile for product" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/unknown/lombok-unknown.jar" />
         </processorPath>
-        <module name="staff" />
         <module name="product" />
+        <module name="staff" />
         <module name="customer" />
       </profile>
     </annotationProcessing>

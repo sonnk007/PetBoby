@@ -49,6 +49,9 @@ public class Product extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String toppings;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
     // Jackson ObjectMapper, có thể khai báo static để tiết kiệm
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
