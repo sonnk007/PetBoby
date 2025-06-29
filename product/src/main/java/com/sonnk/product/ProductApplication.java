@@ -1,13 +1,13 @@
-package com.sonnk.petproject;
+package com.sonnk.product;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class PetprojectApplication {
+public class ProductApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(PetprojectApplication.class, args);
+		SpringApplication.run(ProductApplication.class, args);
 	}
 
 }

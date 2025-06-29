@@ -1,4 +1,4 @@
-package com.sonnk.petproject;
+package com.sonnk.product;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
