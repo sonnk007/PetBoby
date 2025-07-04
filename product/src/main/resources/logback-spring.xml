@@ -4,6 +4,15 @@
     <property name="LOG_FILE_NAME" value="app" />
     <property name="MAX_HISTORY" value="30" /> <!-- Số ngày giữ log -->
 
+    <!-- Logstash TCP appender -->
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>localhost:5000</destination> <!-- địa chỉ Logstash -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Optional: thêm các field tùy chỉnh -->
+            <customFields>{"appName":"product-service","environment":"dev"}</customFields>
+        </encoder>
+    </appender>
+
     <!-- Ghi log ra Console -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -28,6 +37,7 @@
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
         <appender-ref ref="FILE" />
+        <appender-ref ref="LOGSTASH" />
     </root>
 
     <logger name="com.sonnk.product" level="DEBUG"/>
