@@ -1,3 +1,6 @@
+server:
+  port: 8083
+
 spring:
   application:
     name: order
@@ -10,12 +13,32 @@ spring:
     password: sonnk7
     driver-class-name: org.mariadb.jdbc.Driver
 
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
       hibernate:
-        ddl-auto: update
-      show-sql: true
-      properties:
-        hibernate:
-          dialect: org.hibernate.dialect.MariaDBDialect
+        # Bỏ dialect: Hibernate tự detect MariaDB từ driver (chỉ định rõ gây warning deprecation).
+        # Senior: batch fetch cho lazy collection (Order.items, OrderItem.toppings) giảm số query.
+        default_batch_fetch_size: 50
   liquibase:
     enabled: false
+  # Tuần 4 – Kafka: producer gửi event ORDER_CREATED sau khi tạo đơn.
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# Cấu hình gọi Product service (Tuần 3 – Synchronous communication).
+# RestTemplate dùng base-url + timeout; khi chạy qua gateway có thể đổi thành http://localhost:8080 (gateway) và path /api/products.
+petboby:
+  order:
+    product-service:
+      base-url: http://localhost:8082
+      connect-timeout-ms: 2000
+      read-timeout-ms: 5000
+    # Tuần 4 – Kafka: topic gửi event khi đơn được tạo (consumer ở product service log).
+    kafka:
+      topic-order-created: order.created

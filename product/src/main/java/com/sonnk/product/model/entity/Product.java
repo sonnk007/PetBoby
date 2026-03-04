@@ -8,6 +8,8 @@ import com.sonnk.product.utils.enums.ProductSize;
 import com.sonnk.product.utils.enums.ProductStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,8 +18,13 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Entity sản phẩm. Senior: @Where đảm bảo mọi query qua entity tự động filter bản ghi chưa soft-delete.
+ * Khi cần "xem cả đã xóa" (audit/admin) dùng native/HQL hoặc method repository riêng.
+ */
 @Entity
 @Table(name = "product")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor

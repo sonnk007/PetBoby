@@ -7,6 +7,7 @@ import com.sonnk.product.model.dtos.ToppingInfo;
 import com.sonnk.product.model.entity.Category;
 import com.sonnk.product.model.entity.Product;
 import com.sonnk.product.service.ProductService;
+import com.sonnk.product.utils.enums.ProductStatus;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,10 +44,27 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductResponse>> getAll() {
-        List<ProductResponse> responses = productService.getAllProducts().stream()
-                .map(this::toResponse)
-                .toList();
+    public ResponseEntity<List<ProductResponse>> getAll(
+            @RequestParam(required = false) ProductStatus status,
+            @RequestParam(required = false) Long categoryId) {
+        List<Product> products;
+        if (status != null) {
+            products = productService.getByStatusAndCategory(status, categoryId);
+        } else {
+            products = productService.getAllProducts();
+        }
+        List<ProductResponse> responses = products.stream().map(this::toResponse).toList();
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Bulk select sử dụng IN: GET /api/products/bulk?ids=1,2,3
+     * - Demo cho derived query findByIdIn: load nhiều product trong 1 query.
+     */
+    @GetMapping("/bulk")
+    public ResponseEntity<List<ProductResponse>> getBulkByIds(@RequestParam List<Long> ids) {
+        List<Product> products = productService.getByIds(ids);
+        List<ProductResponse> responses = products.stream().map(this::toResponse).toList();
         return ResponseEntity.ok(responses);
     }
 

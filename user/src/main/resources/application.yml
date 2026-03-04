@@ -9,13 +9,13 @@ spring:
     username: root
     password: sonnk7
     driver-class-name: org.mariadb.jdbc.Driver
-
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
       hibernate:
-        ddl-auto: update
-      show-sql: true
-      properties:
-        hibernate:
-          dialect: org.hibernate.dialect.MariaDBDialect
+        # Bỏ dialect: Hibernate tự detect MariaDB từ driver (chỉ định rõ gây warning deprecation).
+        default_batch_fetch_size: 50
   liquibase:
     enabled: false

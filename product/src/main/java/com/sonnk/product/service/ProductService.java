@@ -9,18 +9,24 @@ import com.sonnk.product.model.entity.Topping;
 import com.sonnk.product.repository.CategoryRepository;
 import com.sonnk.product.repository.ProductRepository;
 import com.sonnk.product.repository.ToppingRepository;
+import com.sonnk.product.utils.enums.ProductStatus;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Service nghiệp vụ chính cho Product.
- * - Dùng constructor injection (IoC + DI "chuẩn").
- * - Dùng @Transactional để quản lý persistence context + dirty checking.
- * - Không chứa logic demo, chạy trong luồng thật của hệ thống.
+ * Application service cho use case Product (DDD light + Clean Architecture).
+ *
+ * Pattern áp dụng:
+ * - Service layer: điều phối repository + domain entity, đặt transaction boundary (@Transactional).
+ * - Constructor injection: dễ test, không field injection.
+ *
+ * Công dụng: một chỗ thực thi use case (create/update/softDelete/getByStatus…), controller chỉ gọi service.
+ * Hạn chế: khi nghiệp vụ phức tạp hơn có thể tách domain service (vd: tính giá theo topping) hoặc CQRS.
  */
 @Service
 public class ProductService {
@@ -115,6 +121,42 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<Topping> getAllToppings() {
         return toppingRepository.findAll();
+    }
+
+    /**
+     * Danh sách sản phẩm theo trạng thái và (optional) category.
+     * Dùng derived query tại DB → chỉ lấy đúng dữ liệu cần, có phân trang.
+     */
+    @Transactional(readOnly = true)
+    public List<Product> getByStatusAndCategory(ProductStatus status, Long categoryId) {
+        int pageSize = properties.getDefaultPageSize();
+        PageRequest page = PageRequest.of(0, pageSize);
+        if (categoryId == null) {
+            return productRepository.findByStatus(status, page);
+        }
+        return productRepository.findByStatusAndCategory_Id(status, categoryId, page);
+    }
+
+    /**
+     * Lấy nhiều product theo danh sách id, dùng query IN thay vì gọi findById trong vòng lặp.
+     * Senior: một số DB giới hạn số tham số IN (vd Oracle ~1000); list lớn chia batch để tránh lỗi.
+     */
+    private static final int BULK_SELECT_BATCH_SIZE = 500;
+
+    @Transactional(readOnly = true)
+    public List<Product> getByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        if (ids.size() <= BULK_SELECT_BATCH_SIZE) {
+            return productRepository.findByIdIn(ids);
+        }
+        List<Product> result = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += BULK_SELECT_BATCH_SIZE) {
+            int to = Math.min(i + BULK_SELECT_BATCH_SIZE, ids.size());
+            result.addAll(productRepository.findByIdIn(ids.subList(i, to)));
+        }
+        return result;
     }
 }
 

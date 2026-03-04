@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static com.sonnk.product.demo.ScopedBeans.PrototypeBean;
@@ -68,11 +67,8 @@ public class ProductDemoService {
             productRepository.save(p);
             log.info("[DEMO-JPA] After save, id={}", p.getId());
         } else {
-            Optional<Product> opt = productRepository.findById(productId);
-            if (opt.isEmpty()) {
-                throw new IllegalArgumentException("Product not found for id=" + productId);
-            }
-            p = opt.get();
+            p = productRepository.findById(productId)
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found for id=" + productId));
             log.info("[DEMO-JPA] Loaded managed product id={}, name={}", p.getId(), p.getName());
             String newName = p.getName() + "-UPDATED";
             p.setName(newName);

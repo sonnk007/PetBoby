@@ -1,0 +1,15 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: auth
+
+petboby:
+  auth:
+    jwt:
+      # DEMO ONLY: secret dùng ký JWT. Thực tế phải để trong secret manager / biến môi trường.
+      secret: "change-me-demo-secret-key"
+      issuer: "petboby-auth"
+      access-token-ttl-seconds: 3600
+

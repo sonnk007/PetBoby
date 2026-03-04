@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * Controller DEMO – chỉ phục vụ học tập (scope, JPA state, AOP).
+ * Không thuộc luồng nghiệp vụ chính; có thể tắt hoặc bỏ qua khi deploy prod.
+ */
 @RestController
 @RequestMapping("/api/demo")
 public class ProductDemoController {

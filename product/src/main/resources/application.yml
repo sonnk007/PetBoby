@@ -17,10 +17,24 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MariaDBDialect
+        # Bỏ dialect: Hibernate tự detect MariaDB từ driver (chỉ định rõ gây warning deprecation).
+        # Senior: giảm N+1 khi lazy load collection (vd Order.items) bằng batch fetch.
+        default_batch_fetch_size: 50
 
   liquibase:
     enabled: false
+  # Tuần 4 – Kafka: consumer nhận event ORDER_CREATED từ order service (chỉ log).
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: product-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    properties:
+      spring.json.trusted.packages: "*"
+      spring.json.value.default.type: com.sonnk.product.infrastructure.messaging.OrderCreatedPayload
+
 cloudinary:
   cloud-name: diwlrxoqc
   api-key: 748661693984332
