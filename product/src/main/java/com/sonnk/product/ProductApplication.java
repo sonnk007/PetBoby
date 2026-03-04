@@ -1,9 +1,18 @@
 package com.sonnk.product;
 
+import com.sonnk.product.config.ProductAppProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
+/**
+ * Spring Boot entry point cho module product.
+ *
+ * - @SpringBootApplication: bật auto-configuration + component scan trong package com.sonnk.product.
+ * - @EnableConfigurationProperties: đăng ký ProductAppProperties để Spring bind cấu hình từ application.yml.
+ */
 @SpringBootApplication
+@EnableConfigurationProperties(ProductAppProperties.class)
 public class ProductApplication {
 
 	public static void main(String[] args) {
