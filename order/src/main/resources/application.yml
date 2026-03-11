@@ -30,6 +30,12 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    properties:
+      spring.json.trusted.packages: "*"
 
 # Cấu hình gọi Product service (Tuần 3 – Synchronous communication).
 # RestTemplate dùng base-url + timeout; khi chạy qua gateway có thể đổi thành http://localhost:8080 (gateway) và path /api/products.

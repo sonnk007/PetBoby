@@ -1,5 +1,6 @@
 package com.sonnk.order.api.dto;
 
+import com.sonnk.order.model.entity.enums.OrderSagaState;
 import com.sonnk.order.model.entity.enums.OrderStatus;
 import com.sonnk.order.model.entity.enums.PaymentMethod;
 
@@ -16,6 +17,7 @@ public record OrderResponse(
         String branchCode,
         Long customerId,
         OrderStatus status,
+        OrderSagaState sagaState,
         PaymentMethod paymentMethod,
         BigDecimal totalAmount,
         BigDecimal totalDiscount,

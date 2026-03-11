@@ -153,6 +153,140 @@ Chi tiết code: xem phần “Ứng dụng trong PetBoby” trong file `PetBoby
 
 ---
 
+## 6. So sánh Saga và Event-Driven trong PetBoby
+
+### 6.1. Khái niệm nhanh
+
+- **Event-Driven Architecture (EDA)**:
+  - Service phát event (vd: `order.created`) lên broker.
+  - Service khác subscribe và xử lý độc lập.
+  - Mục tiêu chính: **decouple** và mở rộng dễ.
+
+- **Saga**:
+  - Là pattern xử lý **giao dịch phân tán** qua nhiều service.
+  - Mỗi bước là local transaction + event.
+  - Nếu lỗi ở bước sau thì chạy **compensation** để hoàn tác nghiệp vụ đã làm ở bước trước.
+  - Saga thường triển khai bằng event-driven (choreography) hoặc điều phối trung tâm (orchestration).
+
+### 6.2. Saga vs Event-Driven (so sánh trực tiếp)
+
+| Tiêu chí | Event-Driven (chung) | Saga |
+|---|---|---|
+| Mục tiêu | Truyền thông điệp, tách service | Đảm bảo tính nhất quán nghiệp vụ nhiều bước |
+| Tính bắt buộc rollback | Không bắt buộc | Có cơ chế compensation khi fail |
+| Độ phức tạp | Trung bình | Cao hơn rõ rệt |
+| Theo dõi state giao dịch | Thường không có state machine rõ | Cần state saga (PENDING/SUCCESS/FAILED/COMPENSATED) |
+| Khi phù hợp | Notification, analytics, audit, đồng bộ phụ | Payment, inventory reserve, loyalty point, refund |
+
+### 6.3. Ưu/nhược điểm khi áp dụng vào PetBoby hiện tại
+
+#### A) Event-Driven (cách PetBoby đang dùng)
+
+- **Ưu điểm**:
+  - Nhanh để triển khai: Order publish `order.created`, Product consume để log/xử lý phụ.
+  - Dễ scale: thêm consumer mới (notification, loyalty, analytics) mà không sửa `order` nhiều.
+  - Giảm coupling runtime: order không cần chờ service downstream hoàn tất.
+
+- **Nhược điểm**:
+  - Chỉ dừng ở mức “thông báo sự kiện”, chưa giải quyết trọn vẹn giao dịch nhiều bước.
+  - Dễ phát sinh eventual consistency và duplicate nếu consumer chưa idempotent đầy đủ.
+  - Khi thêm payment/inventory thật sẽ khó kiểm soát trạng thái tổng thể nếu không có saga/state rõ.
+
+#### B) Saga (mức nên hướng tới khi nghiệp vụ tài chính tăng)
+
+- **Ưu điểm**:
+  - Quản lý được luồng nghiệp vụ dài: `CreateOrder -> ReserveInventory -> ChargePayment -> ConfirmOrder`.
+  - Có **compensation** khi lỗi: ví dụ payment fail thì release inventory và đánh dấu order fail.
+  - Phù hợp các luồng nhạy cảm tiền/tồn kho cần audit trạng thái từng bước.
+
+- **Nhược điểm**:
+  - Chi phí thiết kế/vận hành cao hơn: event contract, state machine, timeout, retry, idempotency, DLQ.
+  - Debug khó hơn event-driven cơ bản vì nhiều trạng thái trung gian.
+  - Cần kỷ luật kỹ thuật cao: correlation id, event id, processed-events, monitoring lag/retry.
+
+### 6.4. Khuyến nghị thực tế cho PetBoby
+
+- **Hiện tại** (đang đúng): giữ Event-Driven đơn giản cho `order.created` để học nền tảng Kafka.
+- **Giai đoạn kế tiếp**:
+  1. Thêm idempotent consumer chuẩn (`processed_events` theo `eventId`).
+  2. Thêm outbox cho publish event từ `order`.
+  3. Khi có payment/inventory thật, nâng cấp lên **Saga choreography skeleton**:
+     - Event gợi ý: `order.created`, `inventory.reserved|failed`, `payment.completed|failed`, `order.confirmed|cancelled`.
+     - Có trạng thái nghiệp vụ ở order (`PENDING_PAYMENT`, `CONFIRMED`, `CANCELLED`, ...).
+     - Có compensation rõ khi fail.
+
+### 6.5. Code skeleton đã thêm trong PetBoby (để thực hành ngay)
+
+- **Event contracts**: `order/src/main/java/com/sonnk/order/application/event/saga/*`
+- **Saga state machine (order)**:
+  - `order/src/main/java/com/sonnk/order/model/entity/enums/OrderSagaState.java`
+  - `order/src/main/java/com/sonnk/order/infrastructure/messaging/OrderSagaCoordinatorListener.java`
+- **Inventory choreography (product)**:
+  - `product/src/main/java/com/sonnk/product/infrastructure/messaging/SagaInventoryChoreographyListener.java`
+  - `product/src/main/java/com/sonnk/product/infrastructure/messaging/SagaInventoryEventPublisher.java`
+- **Payment step demo (order)**:
+  - `order/src/main/java/com/sonnk/order/infrastructure/messaging/SagaPaymentProcessorListener.java`
+- **Topic constants + topic creation**:
+  - `order/src/main/java/com/sonnk/order/infrastructure/messaging/SagaTopics.java`
+  - `order/src/main/java/com/sonnk/order/config/KafkaProducerConfig.java`
+
+Mẹo test nhanh:
+- Tạo order với `branchCode` chứa `FAIL-INV` → inventory fail → order bị cancel.
+- Tạo order với `branchCode` chứa `FAIL-PAY` → payment fail → phát compensation `saga.inventory.release.requested`.
+- Trường hợp còn lại → flow success, order đi tới trạng thái `PAID` và saga `COMPLETED`.
+
+### 6.6. Idempotent consumer – `processed_events` table
+
+Bổ sung đã có trong code (production-grade idempotency):
+
+#### Cơ chế hoạt động
+
+```
+Consumer nhận message
+    │
+    ▼
+tryMarkProcessed(eventId, consumerGroup, topic)
+    ├─ existsByEventIdAndConsumerGroup? → true  → LOG warn + return (skip)
+    └─ false → INSERT processed_events (cùng transaction)
+                    │
+                    ▼
+              Business logic
+                    │
+                    ▼
+              COMMIT (processed_events + business changes đồng thời)
+              hoặc ROLLBACK cả hai nếu business fail → retry hợp lệ
+```
+
+- **Cùng transaction**: `IdempotentConsumerHelper` không dùng `REQUIRES_NEW`. Nếu dùng `REQUIRES_NEW`, processed_events commit trước; nếu business sau đó fail → message bị bỏ qua mãi → mất event.
+- **Unique constraint** `(event_id, consumer_group)`: phòng tuyến cuối chặn race condition khi nhiều instance cùng xử lý message. Instance thua INSERT bắt `DataIntegrityViolationException` → skip an toàn.
+
+#### File code đã thêm
+
+| File | Module | Mục đích |
+|---|---|---|
+| `model/entity/ProcessedEvent.java` | order, product | Entity + unique constraint |
+| `repository/ProcessedEventRepository.java` | order, product | `existsByEventIdAndConsumerGroup`, `findByProcessedAtBefore` |
+| `infrastructure/idempotency/IdempotentConsumerHelper.java` | order, product | `tryMarkProcessed()` helper |
+
+#### Cleanup job (cần làm cho production)
+
+```java
+// Xoá row cũ hơn 7 ngày (tránh bảng phình lớn theo thời gian)
+@Scheduled(cron = "0 0 3 * * *")
+@Transactional
+public void cleanupOldProcessedEvents() {
+    List<ProcessedEvent> old = processedEventRepository
+        .findByProcessedAtBefore(LocalDateTime.now().minusDays(7));
+    processedEventRepository.deleteAll(old);
+}
+```
+
+> Tóm lại: **Event-Driven** là nền tảng giao tiếp bất đồng bộ; **Saga** là lớp chiến lược phía trên để đảm bảo nhất quán giao dịch nhiều bước. Với PetBoby hiện tại: dùng EDA là hợp lý, và nên tiến dần sang Saga khi đi vào payment/inventory production.
+
+---
+
 **Đọc thêm**:
 - **PetBoby-backend-knowledge-to-code.md** mục **7.5** (topic/consumer/offset, log message).
-- **PetBoby/docs/kafka-data-integrity-and-deep-dive.md** (tính toàn vẹn dữ liệu giao dịch/thanh toán, cơ chế sâu Kafka, ứng dụng thực tế).
+- **kafka-data-integrity-and-deep-dive.md** (tính toàn vẹn dữ liệu giao dịch/thanh toán, cơ chế sâu Kafka, ứng dụng thực tế).
+
+

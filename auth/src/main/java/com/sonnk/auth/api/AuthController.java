@@ -34,18 +34,20 @@ public class AuthController {
     /**
      * Login demo:
      * - Body: { \"username\": \"admin\", \"password\": \"admin\" }
-     * - Trả về JWT access token kiểu Bearer.
+     * - Trả về JWT access token + refresh token kiểu Bearer.
      *
      * Lưu ý:
      * - Chỉ là DEMO để học JWT; không dùng password/secret hard-code trong production.
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        String token = authService.login(request.username(), request.password());
+        var tokens = authService.login(request.username(), request.password());
         LoginResponse response = new LoginResponse(
-                token,
+                tokens.accessToken(),
                 "Bearer",
-                jwtProperties.getAccessTokenTtlSeconds()
+                tokens.accessTokenExpiresInSeconds(),
+                tokens.refreshToken(),
+                tokens.refreshTokenExpiresInSeconds()
         );
         return ResponseEntity.ok(response);
     }

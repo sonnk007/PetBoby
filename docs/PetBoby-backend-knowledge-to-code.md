@@ -1,4 +1,4 @@
-## BACKEND KNOWLEDGE → CODE TRONG `PetBoby`
+﻿## BACKEND KNOWLEDGE → CODE TRONG `PetBoby`
 
 File này tổng hợp **từ đầu đến cuối**: mỗi nhóm kiến thức backend bạn đã học → được áp dụng / demo thế nào trong code `PetBoby`, và **công dụng thực tế** của chúng.
 
@@ -326,7 +326,7 @@ File này tổng hợp **từ đầu đến cuối**: mỗi nhóm kiến thức 
 - **Monolith vs Microservices**: Monolith = một app/DB/process; Microservices = nhiều service nhỏ, độc lập, giao tiếp API. PetBoby đã tách user/product/order/gateway; client gọi gateway (8080), gateway route theo path.
 - **Bounded context**: user = identity/auth/profile; product = category/product/topping/menu; order = đơn/item/thanh toán; gateway = routing.
 - **Sync vs Async**: Hai cách service nói chuyện với nhau. **Sync** = gọi-chờ (Order→Product qua RestTemplate, Tuần 3); **Async** = gửi event vào broker, ai cần thì subscribe (Kafka, Tuần 4). PetBoby dùng **cả hai** trong cùng luồng tạo đơn → chi tiết và khi nào dùng cái gì: **mục 6.2.0**.
-- **Gateway**: `gateway-service/src/main/resources/application.yml` — `/api/auth/**` → 8084, `/api/users/**` → 8081, `/api/products/**` → 8082, `/api/orders/**` và `/api/demo/orders/**` → 8083. Chi tiết: `PetBoby/docs/backend-overview.md`.
+- **Gateway**: `gateway-service/src/main/resources/application.yml` — `/api/auth/**` → 8084, `/api/users/**` → 8081, `/api/products/**` → 8082, `/api/orders/**` và `/api/demo/orders/**` → 8083. Chi tiết: `backend-overview.md`.
 
 ### 6.1. API Gateway – Routing & Filter (Phase 2 – Tuần 2)
 
@@ -470,7 +470,7 @@ File này tổng hợp **từ đầu đến cuối**: mỗi nhóm kiến thức 
 
 ### 7.5. Quản lý topic, consumer, offset và log request/message
 
-*(Tài liệu thao tác chi tiết: **`PetBoby/docs/kafka-operations.md`**. Phần dưới tóm tắt lý thuyết và cách áp dụng trong PetBoby.)*
+*(Tài liệu thao tác chi tiết: **`kafka-operations.md`**. Phần dưới tóm tắt lý thuyết và cách áp dụng trong PetBoby.)*
 
 #### Lý thuyết
 
@@ -517,7 +517,7 @@ File này tổng hợp **từ đầu đến cuối**: mỗi nhóm kiến thức 
 
 ### 7.6. Tính toàn vẹn dữ liệu (giao dịch/thanh toán), cơ chế sâu và ứng dụng thực tế
 
-*(Tài liệu chi tiết: **`PetBoby/docs/kafka-data-integrity-and-deep-dive.md`**. Phần dưới tóm tắt ý chính.)*
+*(Tài liệu chi tiết: **`kafka-data-integrity-and-deep-dive.md`**. Phần dưới tóm tắt ý chính.)*
 
 #### Lý thuyết
 
@@ -564,4 +564,6 @@ File này tổng hợp **từ đầu đến cuối**: mỗi nhóm kiến thức 
   - Viết mục mới theo đủ 4 phần: Lý thuyết, Cách ứng dụng, Công dụng/Lợi ích, Nhược điểm.
   - Bổ sung mục tương ứng trong **`PetBoby-backend-knowledge-senior.md`** khi có trade-off/production/review.
   - Áp dụng vào luồng nghiệp vụ thật (nếu hợp lý); nếu nhạy cảm thì demo riêng với comment “demo only, không vào luồng chính”.
+
+
 

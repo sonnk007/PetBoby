@@ -54,6 +54,7 @@ public class JwtTokenService {
             payload.put("iss", properties.getIssuer());
             payload.put("iat", nowSeconds);
             payload.put("exp", expSeconds);
+            payload.put("typ", "access");
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
@@ -67,6 +68,50 @@ public class JwtTokenService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize JWT", e);
         }
+    }
+
+    /**
+     * Sinh refresh token với TTL riêng, gắn typ=refresh để phân biệt với access token.
+     * Demo: payload giữ lại sub/roles để dễ debug; production có thể tối giản payload refresh.
+     */
+    public String generateRefreshToken(String subject, List<String> roles) {
+        try {
+            String headerJson = objectMapper.writeValueAsString(Map.of(
+                    "alg", "HS256",
+                    "typ", "JWT"
+            ));
+
+            long nowSeconds = Instant.now().getEpochSecond();
+            long expSeconds = nowSeconds + properties.getRefreshTokenTtlSeconds();
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("sub", subject);
+            payload.put("roles", roles);
+            payload.put("iss", properties.getIssuer());
+            payload.put("iat", nowSeconds);
+            payload.put("exp", expSeconds);
+            payload.put("typ", "refresh");
+
+            String payloadJson = objectMapper.writeValueAsString(payload);
+
+            String headerB64 = base64UrlEncode(headerJson.getBytes(StandardCharsets.UTF_8));
+            String payloadB64 = base64UrlEncode(payloadJson.getBytes(StandardCharsets.UTF_8));
+
+            String toSign = headerB64 + "." + payloadB64;
+            String signature = sign(toSign, properties.getSecret());
+
+            return toSign + "." + signature;
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize refresh JWT", e);
+        }
+    }
+
+    public long getAccessTokenTtlSeconds() {
+        return properties.getAccessTokenTtlSeconds();
+    }
+
+    public long getRefreshTokenTtlSeconds() {
+        return properties.getRefreshTokenTtlSeconds();
     }
 
     private String sign(String data, String secret) {

@@ -26,6 +26,9 @@ spring:
   # Tuần 4 – Kafka: consumer nhận event ORDER_CREATED từ order service (chỉ log).
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       group-id: product-service
       auto-offset-reset: earliest

@@ -1,6 +1,7 @@
 package com.sonnk.order.model.entity;
 
 import com.sonnk.order.model.entity.base.BaseEntity;
+import com.sonnk.order.model.entity.enums.OrderSagaState;
 import com.sonnk.order.model.entity.enums.OrderStatus;
 import com.sonnk.order.model.entity.enums.PaymentMethod;
 import jakarta.persistence.CascadeType;
@@ -54,6 +55,15 @@ public class Order extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status = OrderStatus.NEW;
+
+    /**
+     * Trang thai Saga choreography (demo):
+     * - Giup quan sat order dang o buoc nao cua giao dich phan tan.
+     * - Tach rieng voi OrderStatus nghiep vu de tranh roi giua "status don" va "status giao dich phan tan".
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    private OrderSagaState sagaState = OrderSagaState.NEW;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

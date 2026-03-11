@@ -6,7 +6,9 @@ package com.sonnk.auth.api.dto;
 public record LoginResponse(
         String accessToken,
         String tokenType,
-        long expiresInSeconds
+        long accessTokenExpiresInSeconds,
+        String refreshToken,
+        long refreshTokenExpiresInSeconds
 ) {
 }
 

@@ -1,5 +1,6 @@
 package com.sonnk.order.config;
 
+import com.sonnk.order.infrastructure.messaging.SagaTopics;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,52 @@ public class KafkaProducerConfig {
     public NewTopic orderCreatedTopic(
             @Value("${petboby.order.kafka.topic-order-created:order.created}") String topicName) {
         return TopicBuilder.name(topicName).partitions(2).replicas(1).build();
+    }
+
+    /** Topic Saga choreography skeleton (event + state + compensation). */
+    @Bean
+    public NewTopic sagaOrderCreatedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_ORDER_CREATED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaInventoryReservedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_INVENTORY_RESERVED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaInventoryFailedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_INVENTORY_FAILED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaPaymentRequestedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_PAYMENT_REQUESTED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaPaymentCompletedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_PAYMENT_COMPLETED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaPaymentFailedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_PAYMENT_FAILED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaInventoryReleaseRequestedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_INVENTORY_RELEASE_REQUESTED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaOrderConfirmedTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_ORDER_CONFIRMED).partitions(2).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sagaOrderCancelledTopic() {
+        return TopicBuilder.name(SagaTopics.SAGA_ORDER_CANCELLED).partitions(2).replicas(1).build();
     }
 
     @Bean

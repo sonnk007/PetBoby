@@ -3,6 +3,7 @@ package com.sonnk.order.application.service;
 import com.sonnk.order.application.dto.ProductInfoDto;
 import com.sonnk.order.application.exception.ProductNotFoundException;
 import com.sonnk.order.application.event.OrderCreatedEvent;
+import com.sonnk.order.application.event.saga.SagaOrderCreatedEvent;
 import com.sonnk.order.application.port.OrderEventPublisher;
 import com.sonnk.order.application.port.ProductClient;
 import com.sonnk.order.api.dto.CreateOrderRequest;
@@ -11,7 +12,9 @@ import com.sonnk.order.api.dto.OrderItemResponse;
 import com.sonnk.order.api.dto.OrderResponse;
 import com.sonnk.order.model.entity.Order;
 import com.sonnk.order.model.entity.OrderItem;
+import com.sonnk.order.model.entity.enums.OrderSagaState;
 import com.sonnk.order.model.entity.enums.OrderStatus;
+import com.sonnk.order.infrastructure.messaging.SagaEventPublisher;
 import com.sonnk.order.repository.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +39,15 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductClient productClient;
     private final OrderEventPublisher orderEventPublisher;
+    private final SagaEventPublisher sagaEventPublisher;
 
     public OrderService(OrderRepository orderRepository, ProductClient productClient,
-                       OrderEventPublisher orderEventPublisher) {
+                       OrderEventPublisher orderEventPublisher,
+                       SagaEventPublisher sagaEventPublisher) {
         this.orderRepository = orderRepository;
         this.productClient = productClient;
         this.orderEventPublisher = orderEventPublisher;
+        this.sagaEventPublisher = sagaEventPublisher;
     }
 
     /**
@@ -69,6 +75,7 @@ public class OrderService {
         order.setCustomerId(request.customerId());
         order.setPaymentMethod(request.paymentMethod());
         order.setStatus(OrderStatus.NEW);
+        order.setSagaState(OrderSagaState.INVENTORY_PENDING);
         order.setTotalDiscount(BigDecimal.ZERO);
 
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -106,6 +113,16 @@ public class OrderService {
                 saved.getFinalAmount(),
                 saved.getCreatedAt()
         ));
+        // Saga choreography skeleton: khoi tao event buoc 1 (inventory reserve).
+        sagaEventPublisher.publishSagaStarted(
+                SagaOrderCreatedEvent.of(
+                        saved.getId(),
+                        saved.getOrderCode(),
+                        saved.getBranchCode(),
+                        saved.getFinalAmount(),
+                        saved.getCreatedAt()
+                )
+        );
 
         return toResponse(saved);
     }
@@ -140,6 +157,7 @@ public class OrderService {
                 order.getBranchCode(),
                 order.getCustomerId(),
                 order.getStatus(),
+                order.getSagaState(),
                 order.getPaymentMethod(),
                 order.getTotalAmount(),
                 order.getTotalDiscount(),
