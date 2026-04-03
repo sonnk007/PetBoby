@@ -8,6 +8,7 @@ import com.sonnk.product.model.entity.Category;
 import com.sonnk.product.model.entity.Product;
 import com.sonnk.product.service.ProductService;
 import com.sonnk.product.utils.enums.ProductStatus;
+import com.sonnk.sandbox.repository.SandboxProductRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,19 +29,22 @@ import java.util.List;
 /**
  * RESTful API thực chiến cho module product (menu đồ uống).
  *
- * Nguyên tắc:
- * - Dùng DTO (request/response) thay vì trả entity thô.
- * - Trả về HTTP status code đúng ngữ nghĩa (200, 201, 204, 404...).
- * - Để GlobalExceptionHandler xử lý lỗi & chuẩn hoá error response.
+ * Refactor Phase 2: Sử dụng DTO Projections để tối ưu query
+ * - Dùng DTO (request/response) thay vì trả entity thô
+ * - Trả về HTTP status code đúng ngữ nghĩa (200, 201, 204, 404)
+ * - GlobalExceptionHandler xử lý lỗi & RFC 7807 ProblemDetail response
+ * - Projection queries giảm N+1 và memory footprint
  */
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
 
     private final ProductService productService;
+    private final SandboxProductRepository sandboxProductRepository;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, SandboxProductRepository sandboxProductRepository) {
         this.productService = productService;
+        this.sandboxProductRepository = sandboxProductRepository;
     }
 
     @GetMapping

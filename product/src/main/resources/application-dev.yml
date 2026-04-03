@@ -13,6 +13,7 @@ logging:
   level:
     root: INFO
     com.sonnk.product: DEBUG
+    org.hibernate.orm.queries: display
 
 # Demo Spring Boot fundamentals: cấu hình riêng cho môi trường dev.
 petboby:

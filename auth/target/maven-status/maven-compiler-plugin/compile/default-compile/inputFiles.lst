@@ -2,6 +2,7 @@ D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\AuthControll
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\dto\ApiError.java
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\dto\LoginRequest.java
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\dto\LoginResponse.java
+D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\dto\ValidationErrorDTO.java
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\api\GlobalExceptionHandler.java
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\AuthApplication.java
 D:\1_Learning\Project\PetBoby\auth\src\main\java\com\sonnk\auth\config\AuthJwtProperties.java

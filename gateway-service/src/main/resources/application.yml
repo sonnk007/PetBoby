@@ -34,3 +34,14 @@ spring:
             - Path=/api/demo/orders/**
           filters:
             - AddRequestHeader=X-Gateway-Route, order-demo
+
+# Expose actuator prometheus endpoint for metrics scraping
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true

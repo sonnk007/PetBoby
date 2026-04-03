@@ -17,5 +17,7 @@ spring:
       hibernate:
         # Bỏ dialect: Hibernate tự detect MariaDB từ driver (chỉ định rõ gây warning deprecation).
         default_batch_fetch_size: 50
+        # format_sql: true → SQL in ra console sẽ được căn chỉnh, dễ đọc và debug hơn.
+        format_sql: true
   liquibase:
     enabled: false

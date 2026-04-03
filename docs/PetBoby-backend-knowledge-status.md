@@ -75,15 +75,22 @@ File nay dung de:
 - [x] Trade-off cua event-driven: eventual consistency, idempotency, retry.
 - [x] Ranh gioi DDD/Clean Architecture (port-adapter, layer separation).
 - [x] Quy tac coding/doc da cap nhat trong `PetBoby-backend-coding-rules.md`.
+- [x] Resilience Patterns:
+  - [x] Retry: auto-retry with exponential backoff (idempotency check required for POST).
+  - [x] Circuit Breaker: 3 states (CLOSED → OPEN → HALF_OPEN), prevent cascade failure.
+  - [x] Timeout: TimeLimiter to prevent hanging requests, timeout cascade rule.
+  - [x] Rate Limiter: Token Bucket algorithm, local vs global (Redis-backed).
+  - [x] Bulkhead: Thread pool isolation, protect slow endpoints from starving fast endpoints.
+  - [x] Combined patterns: Stack order matters (TimeLimiter → CircuitBreaker → Retry).
 
 ---
 
 ## 5) Phan con thieu de tiep tuc hoc
 
-- [ ] Security nang cao cho production (JWT hardening, refresh rotation, revoke strategy).
+- [x] Security nang cao cho production (JWT hardening, refresh rotation, revoke strategy).
 - [ ] Testing nang cao (integration test theo luong nghiep vu, test messaging).
 - [ ] Observability (metrics, tracing, dashboard, alerting).
-- [ ] Resilience patterns (retry policy, circuit breaker, backoff strategy).
+- [x] Resilience patterns (retry policy, circuit breaker, backoff strategy, timeout, rate limiter, bulkhead).
 - [x] Saga choreography skeleton (state machine + compensation + idempotent consumer) da duoc implement trong order/product (xem docs/kafka-operations.md + PetBoby-backend-demo-index.md).
 
 ---

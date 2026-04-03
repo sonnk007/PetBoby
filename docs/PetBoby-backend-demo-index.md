@@ -88,7 +88,24 @@ Muc dich:
 
 ---
 
-## 7) Security (Auth/JWT)
+## 7) Resilience Patterns - Phase 4
+
+| Kien thuc | Vi tri code demo/ung dung | Endpoint/ghi chu |
+|---|---|---|
+| Resilience4j Configuration | `order/src/main/java/com/sonnk/order/config/Resilience4jConfig.java` | Event listener for Circuit Breaker, Retry logging |
+| Resilience4j + application.yml | `order/src/main/resources/application.yml` | Config: retry, circuitbreaker, timelimiter, ratelimiter, bulkhead |
+| **Pattern 1: RETRY** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#getProductWithRetry()` | `GET /api/demo/resilience/retry` — auto-retry with exponential backoff |
+| **Pattern 2: CIRCUIT BREAKER** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#getProductWithCircuitBreaker()` | `GET /api/demo/resilience/circuit-breaker` — 3 states, fail-fast protection |
+| **Pattern 3: TIMEOUT** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#getProductWithTimeout()` | `GET /api/demo/resilience/timeout` — TimeLimiter, prevent hanging requests |
+| **Pattern 4: RATE LIMITER** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#bulkGetProducts()` | `GET /api/demo/resilience/rate-limit` — Token Bucket, limit 10 req/s |
+| **Pattern 5: BULKHEAD** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#heavyAnalytics()` | `GET /api/demo/resilience/bulkhead` — Thread pool isolation, max 10 concurrent |
+| **Pattern 6: COMBINED** | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoService.java#getProductCombined()` | `GET /api/demo/resilience/combined` — Stack all patterns: Retry → CircuitBreaker → Timeout → RateLimiter |
+| Demo Controller | `order/src/main/java/com/sonnk/order/demo/ResiliencePatternDemoController.java` | Base path `/api/demo/resilience` |
+| Learning Guide | `docs/PetBoby-resilience-patterns-guide.md` | Chi tiet ly thuyet + test guide cho tung pattern |
+
+---
+
+## 8) Security (Auth/JWT)
 
 | Kien thuc | Vi tri code demo/ung dung | Endpoint/ghi chu |
 |---|---|---|
@@ -98,7 +115,7 @@ Muc dich:
 
 ---
 
-## 8) Cac tai lieu lien quan
+## 9) Cac tai lieu lien quan
 
 - `PetBoby-backend-roadmap.md`
 - `PetBoby-backend-knowledge-status.md`
@@ -107,11 +124,11 @@ Muc dich:
 - `PetBoby-backend-coding-rules.md`
 - `backend-overview.md`
 - `kafka-operations.md`
-- `kafka-data-integrity-and-deep-dive.md`
+- `PetBoby-resilience-patterns-guide.md`
 
 ---
 
-## 9) Quy tac cap nhat file nay (bat buoc)
+## 10) Quy tac cap nhat file nay (bat buoc)
 
 Moi khi them **demo code moi** hoac hoc them **kien thuc moi**, phai cap nhat ngay file nay:
 1. Them dong moi vao bang phu hop.

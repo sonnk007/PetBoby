@@ -1,24 +1,25 @@
 package com.sonnk.auth.api;
 
-import com.sonnk.auth.api.dto.ApiError;
+import com.sonnk.auth.api.dto.ValidationErrorDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.LocalDateTime;
-import java.util.List;
+import java.net.URI;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Global exception handler cho auth service.
- * Chuẩn hoá JSON error response. Senior: 5xx không lộ chi tiết; log stack server-side.
+ * Phase 2 Refactor: Migrated from custom ApiError to ProblemDetail RFC 7807.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -27,72 +28,93 @@ public class GlobalExceptionHandler {
     private static final String GENERIC_ERROR_MESSAGE = "Internal server error";
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+        pd.setType(URI.create("https://api.petboby.com/errors/unauthorized"));
+        pd.setTitle("Unauthorized");
+        pd.setDetail(ex.getMessage());
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(pd);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex,
-                                                     HttpServletRequest request) {
-        List<String> errors = ex.getBindingResult()
+    public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
+                                                        HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setType(URI.create("https://api.petboby.com/errors/validation-error"));
+        pd.setTitle("Validation Failed");
+        pd.setDetail("Input validation failed");
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        List<ValidationErrorDTO> validationErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(this::formatFieldError)
-                .toList();
+                .map(fe -> new ValidationErrorDTO(fe.getField(), fe.getDefaultMessage()))
+                .collect(Collectors.toList());
 
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Validation failed",
-                request.getRequestURI(),
-                errors
-        );
-        return ResponseEntity.badRequest().body(body);
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("validationErrors", validationErrors);
+
+        return ResponseEntity.badRequest().body(pd);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex,
-                                                               HttpServletRequest request) {
-        List<String> errors = ex.getConstraintViolations().stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .toList();
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setType(URI.create("https://api.petboby.com/errors/constraint-violation"));
+        pd.setTitle("Constraint Violation");
+        pd.setDetail("Business rule or constraint validation failed");
+        pd.setInstance(URI.create(getRequestPath(request)));
 
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Constraint violation",
-                request.getRequestURI(),
-                errors
-        );
-        return ResponseEntity.badRequest().body(body);
+        List<ValidationErrorDTO> violations = ex.getConstraintViolations()
+                .stream()
+                .map(cv -> new ValidationErrorDTO(
+                        cv.getPropertyPath().toString(),
+                        cv.getMessage()
+                ))
+                .collect(Collectors.toList());
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("validationErrors", violations);
+
+        return ResponseEntity.badRequest().body(pd);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                GENERIC_ERROR_MESSAGE,
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    public ResponseEntity<ProblemDetail> handleGeneric(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception on {}", getRequestPath(request), ex);
+
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        pd.setType(URI.create("https://api.petboby.com/errors/internal-error"));
+        pd.setTitle("Internal Server Error");
+        pd.setDetail(GENERIC_ERROR_MESSAGE);
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(pd);
     }
 
-    private String formatFieldError(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+    private String getRequestPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String query = request.getQueryString();
+        return query != null ? path + "?" + query : path;
+    }
+
+    private String extractOrGenerateTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader("X-Trace-Id");
+        if (traceId == null || traceId.isEmpty()) {
+            traceId = UUID.randomUUID().toString();
+        }
+        return traceId;
     }
 }
 

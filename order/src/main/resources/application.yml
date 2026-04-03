@@ -22,6 +22,9 @@ spring:
         # Bỏ dialect: Hibernate tự detect MariaDB từ driver (chỉ định rõ gây warning deprecation).
         # Senior: batch fetch cho lazy collection (Order.items, OrderItem.toppings) giảm số query.
         default_batch_fetch_size: 50
+        # format_sql: true → SQL in ra console sẽ được căn chỉnh, dễ đọc và debug hơn.
+        # Kết hợp show-sql=true để thấy được câu lệnh SQL thực thi.
+        format_sql: true
   liquibase:
     enabled: false
   # Tuần 4 – Kafka: producer gửi event ORDER_CREATED sau khi tạo đơn.
@@ -48,3 +51,72 @@ petboby:
     # Tuần 4 – Kafka: topic gửi event khi đơn được tạo (consumer ở product service log).
     kafka:
       topic-order-created: order.created
+
+# Resilience4j Configuration - Phase 4
+# Goal: Học các pattern: Retry, Circuit Breaker, Timeout, Rate Limiter, Bulkhead
+resilience4j:
+  retry:
+    instances:
+      productService:
+        # Retry up to 3 times với exponential backoff
+        max-attempts: 3
+        wait-duration: 1000  # ms
+        multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+        # Không retry nếu gặp những exception này
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
+
+  circuitbreaker:
+    instances:
+      productService:
+        # Mở circuit nếu 50% trong 10 call gần nhất là lỗi
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5000  # ms, sau 5s tự chuyển sang HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+
+  timelimiter:
+    instances:
+      productService:
+        # Timeout tối đa 5 giây
+        timeout-duration: 5000  # ms
+
+  ratelimiter:
+    instances:
+      productServiceBulk:
+        # Giới hạn 10 request trong 1 giây
+        limit-for-period: 10
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+
+  bulkhead:
+    instances:
+      productService:
+        # Tối đa 10 concurrent request cùng lúc
+        max-concurrent-calls: 10
+        max-wait-duration: 5s
+
+logging:
+  level:
+    root: INFO
+    com.sonnk: DEBUG
+    io.github.resilience4j: DEBUG
+    org.hibernate.orm.queries: display
+
+# Management / metrics (Prometheus)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true

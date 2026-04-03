@@ -46,12 +46,24 @@ public class ProductService {
         this.properties = properties;
     }
 
+    /**
+     * [N+1 FIX] Dùng findAllWithCategory thay vì findAll.
+     *
+     * Vấn đề cũ: findAll(Pageable) chỉ SELECT bảng product.
+     *   - toResponse() gọi product.getCategory() → LAZY load → 1 query/product.
+     *   - Với 20 products/trang → 1 + 20 = 21 queries (N+1).
+     *
+     * Giải pháp: findAllWithCategory(Pageable) dùng LEFT JOIN FETCH p.category.
+     *   - 1 SQL: SELECT p.*, c.* FROM product p LEFT JOIN category c ON p.category_id = c.id
+     *   - Product.category đã được Hibernate điền sẵn → toResponse() không trigger thêm query.
+     *   → Giảm từ 21 queries xuống còn 1 query (trang 20 bản ghi).
+     *
+     * An toàn với Pageable vì category là @ManyToOne (không nhân bản số hàng).
+     */
     @Transactional(readOnly = true)
     public List<Product> getAllProducts() {
-        // Demo Spring Boot fundamentals: dùng cấu hình type-safe từ ProductAppProperties.
-        // defaultPageSize có thể cấu hình khác nhau giữa môi trường (dev/stage/prod).
         int pageSize = properties.getDefaultPageSize();
-        return productRepository.findAll(PageRequest.of(0, pageSize)).getContent();
+        return productRepository.findAllWithCategory(PageRequest.of(0, pageSize));
     }
 
     @Transactional(readOnly = true)
@@ -124,17 +136,25 @@ public class ProductService {
     }
 
     /**
-     * Danh sách sản phẩm theo trạng thái và (optional) category.
-     * Dùng derived query tại DB → chỉ lấy đúng dữ liệu cần, có phân trang.
+     * [N+1 FIX] Danh sách sản phẩm theo trạng thái và (optional) category.
+     *
+     * Vấn đề cũ:
+     *   - findByStatus / findByStatusAndCategory_Id → chỉ SELECT product.
+     *   - ProductController.toResponse() truy cập product.getCategory() → N queries thêm.
+     *
+     * Giải pháp:
+     *   - findByStatusWithCategory → LEFT JOIN FETCH p.category WHERE p.status = :status.
+     *   - findByStatusAndCategoryIdWithCategory → JOIN FETCH p.category WHERE status + categoryId.
+     *   → 1 SQL duy nhất lấy cả product lẫn category.
      */
     @Transactional(readOnly = true)
     public List<Product> getByStatusAndCategory(ProductStatus status, Long categoryId) {
         int pageSize = properties.getDefaultPageSize();
         PageRequest page = PageRequest.of(0, pageSize);
         if (categoryId == null) {
-            return productRepository.findByStatus(status, page);
+            return productRepository.findByStatusWithCategory(status, page);
         }
-        return productRepository.findByStatusAndCategory_Id(status, categoryId, page);
+        return productRepository.findByStatusAndCategoryIdWithCategory(status, categoryId, page);
     }
 
     /**

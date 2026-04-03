@@ -16,6 +16,8 @@ import com.sonnk.order.model.entity.enums.OrderSagaState;
 import com.sonnk.order.model.entity.enums.OrderStatus;
 import com.sonnk.order.infrastructure.messaging.SagaEventPublisher;
 import com.sonnk.order.repository.OrderRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -127,14 +129,43 @@ public class OrderService {
         return toResponse(saved);
     }
 
+    /**
+     * [PAGINATION FIX] Trả về Page thay vì List để tránh tải toàn bộ dữ liệu vào bộ nhớ.
+     *
+     * Cách cũ: findAll() → SELECT * FROM orders (không giới hạn) → OOM risk nếu bảng lớn.
+     * Cách mới: findAllPaged(pageable) → SELECT ... LIMIT ? OFFSET ? → chỉ lấy đúng trang cần.
+     *
+     * Về N+1 với collection:
+     *   - KHÔNG thể dùng JOIN FETCH ở đây vì Order.items là @OneToMany.
+     *     JOIN FETCH + Pageable trên collection → Hibernate tải ALL vào bộ nhớ rồi cắt trang
+     *     (in-memory pagination, HHH90003004 warning).
+     *   - Thay vào đó: dùng default_batch_fetch_size=50 (đã cấu hình trong yml).
+     *     Hibernate sẽ gom lazy loading thành: SELECT ... WHERE order_id IN (id1,...,id50)
+     *     → Trang 20 bản ghi = 1 query lấy orders + 1 query batch-load items = 2 queries tổng.
+     *
+     * Dirty Checking lưu ý:
+     *   - @Transactional(readOnly=true) → Hibernate tắt dirty checking snapshot,
+     *     tiết kiệm memory đáng kể khi trang chứa nhiều entity.
+     */
     @Transactional(readOnly = true)
-    public List<OrderResponse> listOrders() {
-        return orderRepository.findAll().stream().map(this::toResponse).toList();
+    public Page<OrderResponse> listOrders(Pageable pageable) {
+        return orderRepository.findAllPaged(pageable).map(this::toResponse);
     }
 
+    /**
+     * [N+1 FIX] Lấy Order kèm items + toppings trong 1 SQL SELECT duy nhất.
+     *
+     * Cách cũ: findById(id) → 1 query (orders only)
+     *   → toResponse() gọi order.getItems() → 1 query thêm (order_item)
+     *   → toResponse() gọi item.getToppings() cho mỗi item → N query (order_item_topping)
+     *   = Tổng: 2 + N queries.
+     *
+     * Cách mới: findByIdWithItemsAndToppings(id) → 1 query duy nhất với LEFT JOIN FETCH
+     *   = Tổng: 1 query.
+     */
     @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
-        Order order = orderRepository.findById(id)
+        Order order = orderRepository.findByIdWithItemsAndToppings(id)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Order not found: " + id));
         return toResponse(order);
     }

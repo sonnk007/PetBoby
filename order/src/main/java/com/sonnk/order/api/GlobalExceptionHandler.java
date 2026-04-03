@@ -3,25 +3,31 @@ package com.sonnk.order.api;
 import com.sonnk.order.api.dto.ApiError;
 import com.sonnk.order.application.exception.ProductNotFoundException;
 import com.sonnk.order.application.exception.ProductServiceUnavailableException;
+import com.sonnk.order.api.dto.ValidationErrorDTO;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.LocalDateTime;
-import java.util.List;
+import java.net.URI;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Global exception handler cho module order (rule: mỗi service cần 1 handler).
- * Chuẩn hoá error response (ApiError). Senior: 5xx chỉ trả message chung, log stack server-side.
+ * Global exception handler cho module order.
+ * Phase 2 Refactor: Migrated from custom ApiError to ProblemDetail RFC 7807.
+ *
+ * Handles order-specific exceptions (ProductNotFoundException, ProductServiceUnavailableException)
+ * plus standard validation errors.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -30,101 +36,129 @@ public class GlobalExceptionHandler {
     private static final String GENERIC_ERROR_MESSAGE = "Internal server error";
 
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotFound(EntityNotFoundException ex, HttpServletRequest request) {
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                HttpStatus.NOT_FOUND.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    public ResponseEntity<ProblemDetail> handleNotFound(EntityNotFoundException ex, HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setType(URI.create("https://api.petboby.com/errors/not-found"));
+        pd.setTitle("Not Found");
+        pd.setDetail(ex.getMessage() != null ? ex.getMessage() : "Resource not found");
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex,
+    public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                         HttpServletRequest request) {
-        List<String> errors = ex.getBindingResult()
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setType(URI.create("https://api.petboby.com/errors/validation-error"));
+        pd.setTitle("Validation Failed");
+        pd.setDetail("Input validation failed");
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        List<ValidationErrorDTO> validationErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(this::formatFieldError)
-                .toList();
+                .map(fe -> new ValidationErrorDTO(fe.getField(), fe.getDefaultMessage()))
+                .collect(Collectors.toList());
 
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Validation failed",
-                request.getRequestURI(),
-                errors
-        );
-        return ResponseEntity.badRequest().body(body);
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("validationErrors", validationErrors);
+
+        return ResponseEntity.badRequest().body(pd);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex,
-                                                               HttpServletRequest request) {
-        List<String> errors = ex.getConstraintViolations().stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .toList();
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setType(URI.create("https://api.petboby.com/errors/constraint-violation"));
+        pd.setTitle("Constraint Violation");
+        pd.setDetail("Business rule or constraint validation failed");
+        pd.setInstance(URI.create(getRequestPath(request)));
 
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Constraint violation",
-                request.getRequestURI(),
-                errors
-        );
-        return ResponseEntity.badRequest().body(body);
+        List<ValidationErrorDTO> violations = ex.getConstraintViolations()
+                .stream()
+                .map(cv -> new ValidationErrorDTO(
+                        cv.getPropertyPath().toString(),
+                        cv.getMessage()
+                ))
+                .collect(Collectors.toList());
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("validationErrors", violations);
+
+        return ResponseEntity.badRequest().body(pd);
     }
 
-    /** ProductId không tồn tại hoặc không active ở Product service → 400. */
+    /**
+     * ProductId không tồn tại hoặc không active ở Product service → 400.
+     */
     @ExceptionHandler(ProductNotFoundException.class)
-    public ResponseEntity<ApiError> handleProductNotFound(ProductNotFoundException ex, HttpServletRequest request) {
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.badRequest().body(body);
+    public ResponseEntity<ProblemDetail> handleProductNotFound(ProductNotFoundException ex, HttpServletRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setType(URI.create("https://api.petboby.com/errors/product-not-found"));
+        pd.setTitle("Product Not Found");
+        pd.setDetail(ex.getMessage());
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.badRequest().body(pd);
     }
 
-    /** Product service timeout / 5xx → 503. */
+    /**
+     * Product service timeout / 5xx → 503.
+     */
     @ExceptionHandler(ProductServiceUnavailableException.class)
-    public ResponseEntity<ApiError> handleProductServiceUnavailable(ProductServiceUnavailableException ex,
-                                                                     HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleProductServiceUnavailable(ProductServiceUnavailableException ex,
+                                                                         HttpServletRequest request) {
         log.warn("Product service unavailable: {}", ex.getMessage());
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.SERVICE_UNAVAILABLE.value(),
-                HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
+
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        pd.setType(URI.create("https://api.petboby.com/errors/service-unavailable"));
+        pd.setTitle("Service Unavailable");
+        pd.setDetail(ex.getMessage());
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(pd);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
-        ApiError body = new ApiError(
-                LocalDateTime.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                GENERIC_ERROR_MESSAGE,
-                request.getRequestURI(),
-                List.of()
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    public ResponseEntity<ProblemDetail> handleGeneric(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception on {}", getRequestPath(request), ex);
+
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        pd.setType(URI.create("https://api.petboby.com/errors/internal-error"));
+        pd.setTitle("Internal Server Error");
+        pd.setDetail(GENERIC_ERROR_MESSAGE);
+        pd.setInstance(URI.create(getRequestPath(request)));
+
+        pd.setProperty("traceId", extractOrGenerateTraceId(request));
+        pd.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(pd);
     }
 
-    private String formatFieldError(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+    private String getRequestPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String query = request.getQueryString();
+        return query != null ? path + "?" + query : path;
+    }
+
+    private String extractOrGenerateTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader("X-Trace-Id");
+        if (traceId == null || traceId.isEmpty()) {
+            traceId = UUID.randomUUID().toString();
+        }
+        return traceId;
     }
 }
