@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.sonnk.auth.sandbox.security.RbacIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 13.75 s -- in com.sonnk.auth.sandbox.security.RbacIntegrationTest

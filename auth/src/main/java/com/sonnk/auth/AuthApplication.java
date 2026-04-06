@@ -1,7 +1,9 @@
 package com.sonnk.auth;
 
+import com.sonnk.auth.config.AuthJwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * Entry point cho auth service.
@@ -16,6 +18,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - Sau này sẽ gọi user-service qua HTTP để verify credential / lấy thông tin role.
  */
 @SpringBootApplication
+@EnableConfigurationProperties(AuthJwtProperties.class)
 public class AuthApplication {
 
     public static void main(String[] args) {

@@ -5,11 +5,28 @@ spring:
   application:
     name: auth
 
+  # H2 in-memory DB cho sandbox.security (RefreshToken, UserEntity)
+  datasource:
+    url: jdbc:h2:mem:petboby-sandbox;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console   # http://localhost:8084/h2-console (sandbox debug)
+
 petboby:
   auth:
     jwt:
       # DEMO ONLY: secret dùng ký JWT. Thực tế phải để trong secret manager / biến môi trường.
-      secret: "change-me-demo-secret-key"
+      # Phải >= 32 ký tự (256 bits) cho JJWT HS256.
+      secret: "change-me-demo-secret-key-32chars!"
       issuer: "petboby-auth"
       access-token-ttl-seconds: 3600      # 1 giờ cho access token (demo)
       refresh-token-ttl-seconds: 2592000  # 30 ngày cho refresh token (demo)
